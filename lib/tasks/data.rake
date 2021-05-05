@@ -91,6 +91,38 @@ namespace :findit do
              '-s solr_writer.http_timeout=1200 '\
              "-c #{Rails.root.join('lib/tasks/data/config/config.rb')}")
     end
+
+    task crossref: :environment do
+      # TODO: user agent
+      # TODO: cache
+      # TODO: follow all of the "NICE" rules for crossref api
+      File.readlines(Rails.root.join('config/issns.txt')).each do |issn|
+        json = URI.parse("https://api.crossref.org/works?filter=issn:#{issn}&rows=1000").read
+        result = JSON(json)
+        result['message']['items'].each do |article|
+          next unless article['title']
+            puts article['title'].first
+            document = {
+              id: article['DOI'],
+              format: article['type'],
+              abstract_display: ActionController::Base.helpers.strip_tags(article['abstract']),
+              is_electronic_facet: 'Online',
+              publisher_display: article['publisher'],
+              publisher_t: article['publisher'],
+              pub_date: article['created']['date-parts'].first[0],
+              record_provider_facet: 'Open access',
+              record_source_facet: 'Open access',
+              title_display: article['title'].first,
+              title_t: article['title'].first,
+              url_fulltext_display: article['link'].first['URL']
+            }
+            solr = RSolr.connect url: ENV['SOLR_URL']
+            solr.add document
+  
+          end
+        end
+      end
+    end
   end
 end
 
